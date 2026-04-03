@@ -15,7 +15,7 @@ def parse_tle(tle_lines):
     TLE format is 3 lines per satellite:
     - Line 0: name
     - Line 1: epoch, drag, mean motion derivative
-    - Line 2: inclination, eccentricity, argument of perigee
+    - Line 2: inclination, eccentricity, argsument of perigee
     """
     satellites = []
     
