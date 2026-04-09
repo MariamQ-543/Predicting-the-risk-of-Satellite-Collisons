@@ -21,12 +21,26 @@ from load_data import load_csv
 TARGET = "risk"
 MAX_LEN = 23
 
-# 12 main features + time_delta
-# Selected based on LightGBM feature importance - top predictors of collision risk
+# Features selected based on LightGBM feature importance analysis
+# Using top predictors confirmed by the tree-based model to ensure
+# the LSTM has access to the most informative signals
+# Includes all three modalities present in the ESA dataset:
+# - Conjunction geometry (relative position, velocity, miss distance)
+# - Uncertainty / covariance terms (sigma values, Mahalanobis distance)
+# - Space weather indices (F10, F3M, AP) - multimodal component
 FEATURE_COLS = [
-    'relative_position_r', 'c_sigma_t', 'mahalanobis_distance', 'miss_distance',
-    'c_sigma_r', 'c_sigma_tdot', 'relative_velocity_t', 'relative_speed',
-    'time_to_tca', 'geocentric_latitude', 'azimuth', 'elevation'
+    # Conjunction geometry - top LightGBM features
+    'relative_position_r', 'miss_distance', 'relative_speed',
+    'relative_velocity_t', 'relative_position_t', 'relative_position_n',
+    # Uncertainty / covariance - how well we know the orbits
+    'c_sigma_t', 'c_sigma_r', 'c_sigma_tdot', 'c_sigma_n',
+    'mahalanobis_distance', 'c_position_covariance_det', 'c_ct_r',
+    't_sigma_r', 't_sigma_t',
+    # Orbital context
+    'time_to_tca', 'geocentric_latitude', 'azimuth', 'elevation',
+    # Space weather indices - atmospheric drag affects orbit uncertainty
+    # F10: solar radio flux, F3M: 81-day mean, AP: geomagnetic activity
+    'F10', 'F3M', 'AP'
 ]
 
 def prepare_data():
@@ -40,8 +54,8 @@ def prepare_data():
     train = train.sort_values(['event_id', 'time_to_tca'], ascending=[True, True])
     test = test.sort_values(['event_id', 'time_to_tca'], ascending=[True, True])
 
-    # time gap between consecutive CDMs within each event
-    # gives the model information about how frequently updates arrived
+    # Time gap between consecutive CDMs within each event
+    # Gives the model information about how frequently updates arrived
     train['time_delta'] = train.groupby('event_id')['time_to_tca'].diff().fillna(0).abs()
     test['time_delta'] = test.groupby('event_id')['time_to_tca'].diff().fillna(0).abs()
 
@@ -66,12 +80,12 @@ def prepare_data():
 def create_sequences(df, feature_cols, target_col):
     """
     Convert each conjunction event into a fixed-length sequence.
-    
+
     Each event has multiple CDMs over time. We treat these as timesteps.
     Target is the risk value at the final CDM (closest to TCA).
     This matches what LightGBM and physics baseline also predict,
     ensuring fair comparison across all models.
-    
+
     Padding is added at the START so that the most recent CDMs
     (closest to TCA) are always at the end of the sequence.
     """
@@ -104,15 +118,16 @@ def create_sequences(df, feature_cols, target_col):
 def build_model(input_shape):
     """
     BiLSTM + Attention model.
-    
+
     Bidirectional LSTM reads the CDM sequence in both directions,
     capturing both how risk evolved from the start and how it
     approaches TCA from the end.
     Schuster & Paliwal (1997) - Bidirectional Recurrent Neural Networks
-    
+
     Attention layer learns which CDMs in the sequence matter most
     for predicting the final risk.
-    Bahdanau et al. (2015) - Neural Machine Translation by Jointly Learning to Align and Translate
+    Bahdanau et al. (2015) - Neural Machine Translation by Jointly
+    Learning to Align and Translate
     """
     inputs = layers.Input(shape=input_shape)
 
@@ -176,8 +191,9 @@ if __name__ == "__main__":
 
     os.makedirs("results/models", exist_ok=True)
     my_callbacks = [
-        # Stop early if validation loss stops improving, restore best weights
-        callbacks.EarlyStopping(patience=5, restore_best_weights=True),
+        # patience=8: wait 8 epochs without improvement before stopping
+        # more patience than before since loss was still slowly improving
+        callbacks.EarlyStopping(patience=8, restore_best_weights=True),
         # Save the best model checkpoint during training
         callbacks.ModelCheckpoint("results/models/best_bilstm.h5", save_best_only=True)
     ]
@@ -185,7 +201,7 @@ if __name__ == "__main__":
     model.fit(
         X_train, y_train,
         validation_data=(X_val, y_val),
-        epochs=30,
+        epochs=50,  # increased from 30 - model needs more time to converge
         batch_size=32,
         callbacks=my_callbacks
     )
@@ -198,14 +214,14 @@ if __name__ == "__main__":
     mae = mean_absolute_error(y_test, preds)
     r2 = r2_score(y_test, preds)
 
-    print(f"\nFinal Test Results -> RMSE: {rmse:.4f}, MAE: {mae:.4f}, R2: {r2:.4f}")
+    print(f"\nFinal Test Results = RMSE: {rmse:.4f}, MAE: {mae:.4f}, R2: {r2:.4f}")
 
     # 5. save results
     os.makedirs("results/tables", exist_ok=True)
     os.makedirs("results/predictions", exist_ok=True)
     os.makedirs("results", exist_ok=True)
 
-    # Append to shared metrics file so all models can be compared in one place
+    # Shared metrics file so all models can be compared in one place
     metrics_path = "results/model_metrics.csv"
     file_exists = os.path.isfile(metrics_path)
     with open(metrics_path, "a", newline="") as f:
