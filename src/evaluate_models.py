@@ -5,6 +5,7 @@
 # - residual plots for each model
 # - formatted comparison table
 #
+# run this after all models have been trained
 # https://www.geeksforgeeks.org/matplotlib-tutorial/
 # https://www.geeksforgeeks.org/data-visualisation-using-matplotlib-for-ml/
 # https://www.geeksforgeeks.org/python-seaborn-tutorial/
@@ -27,16 +28,18 @@ MODEL_COLOURS = {
     'LightGBM':        '#2196F3',
     'BiLSTM':          '#FF9800',
     'MLP':             '#9C27B0',
-    'GNN':             '#4CAF50'
+    'GNN':             '#4CAF50',
+    'Transformer':     '#F44336'
 }
 
-MODEL_ORDER = ['PhysicsBaseline', 'LightGBM', 'BiLSTM', 'MLP', 'GNN']
+MODEL_ORDER = ['PhysicsBaseline', 'LightGBM', 'BiLSTM', 'Transformer', 'MLP', 'GNN']
 
 # prediction file paths - one per model
 PRED_FILES = {
     'PhysicsBaseline': 'results/predictions/physics_baseline_predictions.csv',
     'LightGBM':        'results/predictions/lightgbm_predictions.csv',
     'BiLSTM':          'results/predictions/lstm_predictions.csv',
+    'Transformer':     'results/predictions/transformer_predictions.csv',
     'MLP':             'results/predictions/mlp_predictions.csv',
     'GNN':             'results/predictions/gnn_predictions.csv',
 }
@@ -192,7 +195,7 @@ plt.savefig('results/plots/residuals_all.png', dpi=150, bbox_inches='tight')
 plt.close()
 print("Saved results/plots/residuals_all.png")
 
-# plot 5: summary heatmap
+# plot 5: summary heatmap 
 # normalise metrics so they're on the same scale for the heatmap
 # R2: higher is better, RMSE/MAE: lower is better (invert so higher = better)
 heatmap_df = metrics_df.set_index('Model')[['R2', 'RMSE', 'MAE']].copy()
