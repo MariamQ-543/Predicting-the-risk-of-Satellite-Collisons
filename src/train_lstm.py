@@ -195,7 +195,7 @@ if __name__ == "__main__":
         # more patience than before since loss was still slowly improving
         callbacks.EarlyStopping(patience=8, restore_best_weights=True),
         # Save the best model checkpoint during training
-        callbacks.ModelCheckpoint("results/models/best_bilstm.h5", save_best_only=True)
+        callbacks.ModelCheckpoint("results/models/best_bilstm.keras", save_best_only=True)
     ]
 
     model.fit(

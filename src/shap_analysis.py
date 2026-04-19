@@ -2,8 +2,6 @@
 # explains why the model made each prediction by showing
 # how much each feature pushed the risk prediction up or down
 # uses TreeExplainer which is fast and exact for tree based models
-#
-# https://www.geeksforgeeks.org/shap-values-in-machine-learning/
 # https://shap.readthedocs.io/en/latest/example_notebooks/overviews/An%20introduction%20to%20explainable%20AI%20with%20Shapley%20values.html
 # https://www.datacamp.com/tutorial/introduction-to-shap-values-machine-learning-interpretability
 

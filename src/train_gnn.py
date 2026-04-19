@@ -6,11 +6,13 @@
 # via message passing
 #
 # tutorials used:
-# https://www.geeksforgeeks.org/graph-neural-networks-gnn/
+# https://www.geeksforgeeks.org/deep-learning/graph-neural-networks-with-pytorch/
 # https://pytorch-geometric.readthedocs.io/en/latest/get_started/introduction.html
 # https://www.datacamp.com/tutorial/comprehensive-introduction-graph-neural-networks-gnns-tutorial
 # https://medium.com/towards-data-science/hands-on-graph-neural-networks-with-pytorch-pytorch-geometric-359487e221a8
-# https://www.geeksforgeeks.org/graph-attention-networks/
+# https://www.baeldung.com/cs/graph-attention-networks
+# https://medium.com/@farzad.karami/understanding-graph-attention-networks-a-practical-exploration-cf033a8f3d9d
+# https://www.dgl.ai/dgl_docs/en/2.0.x/tutorials/models/1_gnn/9_gat.html
 
 import os
 import csv
@@ -55,7 +57,6 @@ def build_graph(df, node_feature_cols):
     # with only 19 nodes this is fine (19x18 = 342 edges)
     # GAT attention weights learn which connections actually matter
     # node features are the mean CDM values for each mission
-    # https://www.geeksforgeeks.org/graph-neural-networks-gnn/
 
     missions = sorted(df['mission_id'].unique())
     mission_to_idx = {m: i for i, m in enumerate(missions)}
@@ -98,7 +99,6 @@ class GATModel(nn.Module):
     # matter most using attention weights - similar to the attention in BiLSTM
     # after message passing, combines node embedding with event features
     # and predicts risk through a small MLP
-    # https://www.geeksforgeeks.org/graph-attention-networks/
 
     def __init__(self, node_feat_dim, event_feat_dim, hidden_dim=32):
         super(GATModel, self).__init__()

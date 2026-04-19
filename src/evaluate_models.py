@@ -5,9 +5,7 @@
 # - residual plots for each model
 # - formatted comparison table
 #
-# run this after all models have been trained
 # https://www.geeksforgeeks.org/matplotlib-tutorial/
-# https://www.geeksforgeeks.org/data-visualisation-using-matplotlib-for-ml/
 # https://www.geeksforgeeks.org/python-seaborn-tutorial/
 
 import os
