@@ -3,6 +3,7 @@
 # orbit paths are drawn from representative orbital properties in the test data
 # selecting a satellite shows its properties and most dangerous conjunction events
 #
+# venv: .venv\Scripts\activate
 # run from src folder: streamlit run src/dashboard.py
 #
 # https://docs.streamlit.io/
@@ -22,38 +23,68 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# dark space theme
-st.markdown("""
+# accessibility options
+with st.sidebar:
+    st.markdown("### Accessibility")
+    light_mode = st.toggle("Light mode", value=False)
+    text_size = st.selectbox("Text size", ["Small", "Medium", "Large"], index=1)
+
+if text_size == "Small":
+    font_size = "14px"
+elif text_size == "Large":
+    font_size = "18px"
+else:
+    font_size = "16px"
+
+if light_mode:
+    app_bg = "#f7f9fc"
+    panel_bg = "#ffffff"
+    plot_bg = "#ffffff"
+    text_colour = "#111827"
+    muted_colour = "#4b5563"
+    border_colour = "#cbd5e1"
+    sidebar_bg = "#ffffff"
+else:
+    app_bg = "#020818"
+    panel_bg = "#0d1b2a"
+    plot_bg = "#0d1b2a"
+    text_colour = "#e0e8f0"
+    muted_colour = "#78909c"
+    border_colour = "#1e3a5f"
+    sidebar_bg = "#030d1a"
+
+# dark / light space theme
+st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap');
-    .stApp { background-color: #020818; color: #e0e8f0; }
-    .main-title {
+    .stApp {{ background-color: {app_bg}; color: {text_colour}; font-size: {font_size}; }}
+    .main-title {{
         font-family: 'Share Tech Mono', monospace;
         font-size: 2rem; color: #4fc3f7;
         letter-spacing: 0.05em; margin-bottom: 0;
-    }
-    .sub-title {
+    }}
+    .sub-title {{
         font-family: 'Exo 2', sans-serif;
-        font-size: 0.9rem; color: #78909c;
+        font-size: 0.9rem; color: {muted_colour};
         margin-top: 0.2rem; margin-bottom: 1.5rem;
-    }
-    .section-header {
+    }}
+    .section-header {{
         font-family: 'Share Tech Mono', monospace;
         color: #4fc3f7; font-size: 1rem;
-        border-bottom: 1px solid #1e3a5f;
+        border-bottom: 1px solid {border_colour};
         padding-bottom: 0.3rem; margin-bottom: 1rem;
-    }
-    .legend-box {
-        background: #0d1b2a; border: 1px solid #1e3a5f;
+    }}
+    .legend-box {{
+        background: {panel_bg}; border: 1px solid {border_colour};
         border-radius: 6px; padding: 0.8rem; margin-bottom: 1rem;
-    }
-    .legend-item { display: flex; align-items: center; margin: 0.4rem 0; font-size: 0.85rem; }
-    .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .line { width: 24px; height: 3px; display: inline-block; margin-right: 8px; border-radius: 2px; }
-    [data-testid="stSidebar"] {
-        background-color: #030d1a;
-        border-right: 1px solid #1e3a5f;
-    }
+    }}
+    .legend-item {{ display: flex; align-items: center; margin: 0.4rem 0; font-size: 0.85rem; }}
+    .dot {{ width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }}
+    .line {{ width: 24px; height: 3px; display: inline-block; margin-right: 8px; border-radius: 2px; }}
+    [data-testid="stSidebar"] {{
+        background-color: {sidebar_bg};
+        border-right: 1px solid {border_colour};
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -118,7 +149,7 @@ def compute_mission_stats(events_df):
         total_events=('actual_risk', 'count'),
         mean_risk=('actual_risk', 'mean'),
         min_risk=('actual_risk', 'min'),
-        high_risk_events=('actual_risk', lambda x: (x > -6).sum()),
+        high_risk_events=('actual_risk', lambda x: (x > -8).sum()),
         sma=('t_j2k_sma', 'median'),
         ecc=('t_j2k_ecc', 'median'),
         inc=('t_j2k_inc', 'median')
@@ -131,13 +162,14 @@ def orbit_colour_by_risk(mean_risk):
     # colour the orbit line based on the satellite's average conjunction risk
     if mean_risk > -8:
         return '#ef5350'   # red - high average risk
-    elif mean_risk > -12:
+    elif mean_risk > -15:
         return '#ffa726'   # orange - medium average risk
     else:
         return '#66bb6a'   # green - low average risk
 
 
 def risk_label(risk_val):
+    # consistent thresholds used everywhere
     if risk_val > -8:
         return 'HIGH'
     elif risk_val > -15:
@@ -148,10 +180,9 @@ def risk_label(risk_val):
 
 def make_orbit_points(sma_km, inc_deg, raan_deg=0, n_points=150):
     # draw a simple circular orbit around Earth in 3D
-    # used the altitude (sma) from the dataset for the orbit size
-    # and the inclination to tilt it at the right angle
-    # orbits are treated as circles not ellipses
-    # which is accurate enough for visualisation since ESA satellites have very low eccentricity
+    # uses altitude (sma) from the dataset for orbit size
+    # and inclination to tilt it at the right angle
+    # orbits are circles not ellipses - accurate enough since ESA satellites have very low eccentricity
     #
     # https://plotly.com/python/3d-scatter-plots/
     # https://community.plotly.com/t/plot-earth-in-a-scatter3d-plot-for-orbits/44054
@@ -222,12 +253,12 @@ def build_globe(mission_stats, events_df, selected_mission=None):
 
     if mission_stats.empty:
         fig.update_layout(
-            scene=dict(bgcolor='#020818',
+            scene=dict(bgcolor=app_bg,
                        xaxis=dict(showgrid=False, showticklabels=False, title=''),
                        yaxis=dict(showgrid=False, showticklabels=False, title=''),
                        zaxis=dict(showgrid=False, showticklabels=False, title=''),
                        aspectmode='cube'),
-            paper_bgcolor='#020818',
+            paper_bgcolor=app_bg,
             margin=dict(l=0, r=0, t=0, b=0),
             showlegend=False, height=620
         )
@@ -248,10 +279,10 @@ def build_globe(mission_stats, events_df, selected_mission=None):
         if sma < 6400:
             sma = 7000.0
 
-        # add small inclination variation per satellite to spread orbits visually
+        # small inclination offset per satellite to spread orbits visually
         # all ESA satellites have similar real inclinations so without this
         # they all look like the same polar orbit stacked on top of each other
-        inc_offset = (missions.index(mission) % 5) * 4
+        inc_offset  = (missions.index(mission) % 5) * 4
         display_inc = inc + inc_offset
 
         x, y, z = make_orbit_points(sma, display_inc, raan)
@@ -260,23 +291,35 @@ def build_globe(mission_stats, events_df, selected_mission=None):
         opacity     = 1.0 if is_selected else 0.15
         width       = 3.0 if is_selected else 0.8
 
-        # orbit line coloured by average risk of this satellite
+        # visible orbit line
         fig.add_trace(go.Scatter3d(
             x=x, y=y, z=z,
             mode='lines',
             line=dict(color=colour, width=width),
             opacity=opacity,
             name=f'SAT-{mission:02d}',
+            hoverinfo='skip',
+            showlegend=False
+        ))
+
+        # invisible wider orbit line to make hover easier in the demo
+        fig.add_trace(go.Scatter3d(
+            x=x, y=y, z=z,
+            mode='lines',
+            line=dict(color='rgba(255,255,255,0)', width=12),
+            opacity=opacity,
+            name=f'SAT-{mission:02d} hover',
             hovertemplate=(
                 f'<b>SAT-{mission:02d}</b><br>'
                 f'Mean Risk: {row["mean_risk"]:.2f} (log10)<br>'
                 f'Total Events: {int(row["total_events"])}<br>'
+                f'High Risk Events: {int(row["high_risk_events"])}<br>'
                 f'SMA: {sma:.0f} km<br>'
                 f'Inclination: {inc:.1f} deg<extra></extra>'
-            )
+            ),
+            showlegend=False
         ))
 
-        # satellite position marker
         phase = 0.4 * missions.index(mission)
         sx, sy, sz = satellite_position(sma, display_inc, raan, phase)
 
@@ -303,27 +346,26 @@ def build_globe(mission_stats, events_df, selected_mission=None):
             showlegend=False
         ))
 
-        # show only top 10 highest risk conjunction events on orbit when selected
-        # keeping it to 10 avoids flickering and keeps the visualisation clean
-        # all events are still shown in the full table below
+        # show top 10 MOST dangerous events (descending = highest risk first)
+        # higher risk value = more dangerous (less negative)
         if is_selected and selected_mission is not None and events_df is not None:
-            # cast mission_id to int to avoid type mismatch with mission variable
             sat_events = events_df[events_df['mission_id'].astype(int) == mission]
-            sat_events = sat_events.sort_values('actual_risk', ascending=True).head(10)
+            sat_events = sat_events.sort_values('actual_risk', ascending=False).head(10)
 
             for _, ev in sat_events.iterrows():
                 phase_ev = np.random.uniform(0, 2 * np.pi)
                 ex, ey, ez = satellite_position(sma, display_inc, raan, phase_ev)
 
-                risk      = ev['actual_risk']
-                ec        = '#ef5350' if risk > -6 else '#ffa726' if risk > -10 else '#66bb6a'
-                esize     = 12 if risk > -8 else 8 if risk > -15 else 5
-                rl        = 'HIGH' if risk > -6 else 'MEDIUM' if risk > -10 else 'LOW'
+                risk     = ev['actual_risk']
+                # consistent colour and size thresholds matching risk_label
+                ec       = '#ef5350' if risk > -8 else '#ffa726' if risk > -15 else '#66bb6a'
+                esize    = 12 if risk > -8 else 8 if risk > -15 else 5
+                rl       = risk_label(risk)
 
-                miss_d    = ev.get('miss_distance', float('nan'))
-                speed     = ev.get('relative_speed', float('nan'))
-                obj_type  = ev.get('c_object_type', 'Unknown')
-                lgbm      = ev.get('pred_LightGBM', float('nan'))
+                miss_d   = ev.get('miss_distance', float('nan'))
+                speed    = ev.get('relative_speed', float('nan'))
+                obj_type = ev.get('c_object_type', 'Unknown')
+                lgbm     = ev.get('pred_LightGBM', float('nan'))
 
                 miss_str  = f'{miss_d:.0f} m' if not pd.isna(miss_d) else 'N/A'
                 speed_str = f'{speed:.0f} m/s' if not pd.isna(speed) else 'N/A'
@@ -349,14 +391,14 @@ def build_globe(mission_stats, events_df, selected_mission=None):
 
     fig.update_layout(
         scene=dict(
-            bgcolor='#020818',
-            xaxis=dict(showgrid=False, showticklabels=False, title='', backgroundcolor='#020818'),
-            yaxis=dict(showgrid=False, showticklabels=False, title='', backgroundcolor='#020818'),
-            zaxis=dict(showgrid=False, showticklabels=False, title='', backgroundcolor='#020818'),
+            bgcolor=app_bg,
+            xaxis=dict(showgrid=False, showticklabels=False, title='', backgroundcolor=app_bg),
+            yaxis=dict(showgrid=False, showticklabels=False, title='', backgroundcolor=app_bg),
+            zaxis=dict(showgrid=False, showticklabels=False, title='', backgroundcolor=app_bg),
             aspectmode='cube',
             camera=dict(eye=dict(x=1.6, y=1.2, z=0.7))
         ),
-        paper_bgcolor='#020818',
+        paper_bgcolor=app_bg,
         margin=dict(l=0, r=0, t=10, b=0),
         showlegend=False,
         height=620,
@@ -366,38 +408,39 @@ def build_globe(mission_stats, events_df, selected_mission=None):
     return fig
 
 
+# load data on startup
+try:
+    pred_df, preds, test_df, metrics_df = load_all_data()
+    events_df     = build_event_table(test_df, pred_df)
+    mission_stats = compute_mission_stats(events_df)
+    data_loaded   = True
+except Exception as e:
+    st.error(f"Error loading data: {e}")
+    data_loaded = False
+
+
 # sidebar navigation
 with st.sidebar:
     st.markdown("### Navigation")
     page = st.radio(
         "",
         ["Orbit Visualisation", "Model Comparison",
-         "Explainability", "Mission Overview", "About"],
+         "Evaluation", "Explainability", "Mission Overview", "About"],
         label_visibility="collapsed"
     )
     st.divider()
     st.markdown("**Dataset:** ESA Collision Avoidance Challenge")
-    st.markdown("**Events:** 2,167 test conjunctions")
-    st.markdown("**Satellites:** 19 ESA missions")
+    if data_loaded:
+        st.markdown(f"**Events:** {len(events_df):,} test conjunctions")
+        st.markdown(f"**Satellites:** {len(mission_stats)} ESA missions")
     st.markdown("**Models:** 5 compared")
-
-
-# load data on startup
-try:
-    pred_df, preds, test_df, metrics_df = load_all_data()
-    events_df    = build_event_table(test_df, pred_df)
-    mission_stats = compute_mission_stats(events_df)
-    data_loaded  = True
-except Exception as e:
-    st.error(f"Error loading data: {e}")
-    data_loaded = False
 
 
 # page: orbit visualisation
 if page == "Orbit Visualisation" and data_loaded:
     st.markdown('<p class="main-title">Satellite Collision Risk Dashboard</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">ESA Collision Avoidance Challenge — Real operational conjunction data 2015-2019</p>', unsafe_allow_html=True)
-    
+    st.markdown('<p class="sub-title">ESA Collision Avoidance Challenge - Real operational conjunction data 2015-2019</p>', unsafe_allow_html=True)
+    st.info("This shows ESA satellite orbits and their most dangerous close approach events. Higher risk values are more dangerous because the values are log10 probabilities.")
 
     col_globe, col_panel = st.columns([2.2, 1])
 
@@ -406,13 +449,13 @@ if page == "Orbit Visualisation" and data_loaded:
         st.markdown("""
         <div class="legend-box">
             <div style="font-size:0.8rem; color:#78909c; margin-bottom:0.6rem;">Orbit colour = average collision risk for that satellite</div>
-            <div class="legend-item"><span class="line" style="background:#ef5350;"></span> High average risk</div>
-            <div class="legend-item"><span class="line" style="background:#ffa726;"></span> Medium average risk</div>
-            <div class="legend-item"><span class="line" style="background:#66bb6a;"></span> Low average risk</div>
+            <div class="legend-item"><span class="line" style="background:#ef5350;"></span> High average risk (> -8)</div>
+            <div class="legend-item"><span class="line" style="background:#ffa726;"></span> Medium average risk (-15 to -8)</div>
+            <div class="legend-item"><span class="line" style="background:#66bb6a;"></span> Low average risk (< -15)</div>
             <div style="margin-top:0.8rem; font-size:0.8rem; color:#78909c;">Conjunction event dots (visible when satellite selected)</div>
             <div class="legend-item"><span class="dot" style="background:#ef5350;"></span> High risk event (risk > -8)</div>
-            <div class="legend-item"><span class="dot" style="background:#ffa726;"></span> Medium risk event</div>
-            <div class="legend-item"><span class="dot" style="background:#66bb6a;"></span> Low risk event</div>
+            <div class="legend-item"><span class="dot" style="background:#ffa726;"></span> Medium risk event (-15 to -8)</div>
+            <div class="legend-item"><span class="dot" style="background:#66bb6a;"></span> Low risk event (< -15)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -426,7 +469,7 @@ if page == "Orbit Visualisation" and data_loaded:
             - **Mahalanobis Distance:** Danger score accounting for orbit uncertainty. Smaller = more dangerous.
             - **Relative Speed:** How fast the two objects approach each other in m/s.
             - **Chaser Type:** DEBRIS = space junk, PAYLOAD = another satellite, ROCKET BODY = spent rocket stage.
-            - **Actual Risk:** Log10 collision probability. -6 = 1 in 1,000,000. -4 = 1 in 10,000. ESA acts above -4.
+            - **Actual Risk:** Log10 collision probability. Higher values are more dangerous. -4 = 1 in 10,000. ESA acts above -4.
             - **LightGBM Pred:** The best ML model's predicted final risk using early warning messages.
             """)
 
@@ -443,9 +486,10 @@ if page == "Orbit Visualisation" and data_loaded:
         fig = build_globe(mission_stats, events_df, sel_mission)
         st.plotly_chart(fig, use_container_width=True)
 
-    n_high = (events_df['actual_risk'] > -6).sum()
-    n_med  = ((events_df['actual_risk'] <= -6) & (events_df['actual_risk'] > -10)).sum()
-    n_low  = (events_df['actual_risk'] <= -10).sum()
+    # consistent risk counts using same thresholds as risk_label
+    n_high = (events_df['actual_risk'] > -8).sum()
+    n_med  = ((events_df['actual_risk'] <= -8) & (events_df['actual_risk'] > -15)).sum()
+    n_low  = (events_df['actual_risk'] <= -15).sum()
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Events", len(events_df))
     c2.metric("High Risk", int(n_high))
@@ -535,16 +579,19 @@ if page == "Orbit Visualisation" and data_loaded:
             disp = sat_events[list(available.keys())].copy()
             disp = disp.rename(columns=available)
             disp['Risk Level'] = sat_events['actual_risk'].apply(risk_label)
-            disp = disp.sort_values('Actual Risk', ascending=True)
+            # sort descending - higher value = more dangerous
+            disp = disp.sort_values('Actual Risk', ascending=False)
             st.dataframe(disp.round(2), use_container_width=True, height=500)
         else:
             st.info("No conjunction data available for this satellite.")
 
     else:
-        st.markdown('<p class="section-header">Top 25 Most Dangerous Conjunction Events (All Satellites)</p>',
+        st.markdown('<p class="section-header">Top 10 Most Dangerous Conjunction Events (All Satellites)</p>',
                     unsafe_allow_html=True)
+        st.caption("Higher risk values are more dangerous because the values are log10 probabilities. For example, risk = -4 means 1 in 10,000, while risk = -30 is extremely low risk. Select a satellite from the dropdown above to see all conjunction events for that mission specifically.")
 
-        top = events_df.sort_values('actual_risk', ascending=True).head(25)
+        # sort descending - highest (least negative) = most dangerous
+        top = events_df.sort_values('actual_risk', ascending=False).head(10)
         col_map = {
             'event_id':             'Event ID',
             'mission_id':           'Satellite',
@@ -559,16 +606,16 @@ if page == "Orbit Visualisation" and data_loaded:
         available = {k: v for k, v in col_map.items() if k in top.columns}
         disp = top[list(available.keys())].copy()
         disp = disp.rename(columns=available)
-        disp['Risk Level'] = top['actual_risk'].apply(risk_label)
         if 'Satellite' in disp.columns:
             disp['Satellite'] = disp['Satellite'].apply(
                 lambda x: f'SAT-{int(x):02d}' if not pd.isna(x) else 'N/A')
-        st.dataframe(disp.round(2), use_container_width=True, height=500)
+        disp['Risk Level'] = top['actual_risk'].apply(risk_label)
+        st.dataframe(disp.round(2), use_container_width=True, height=400)
 
     if not mission_stats.empty:
         st.markdown('<p class="section-header">All Satellites Ranked by Average Collision Risk</p>',
                     unsafe_allow_html=True)
-        rank_df = mission_stats.sort_values('mean_risk', ascending=True).copy()
+        rank_df = mission_stats.sort_values('mean_risk', ascending=False).copy()
         rank_df['satellite'] = rank_df['mission_id'].apply(lambda x: f'SAT-{int(x):02d}')
         rank_df['colour']    = rank_df['mean_risk'].apply(orbit_colour_by_risk)
 
@@ -579,15 +626,15 @@ if page == "Orbit Visualisation" and data_loaded:
             hovertemplate='<b>%{x}</b><br>Mean Risk: %{y:.2f}<extra></extra>'
         ))
         fig_rank.update_layout(
-            paper_bgcolor='#020818', plot_bgcolor='#0d1b2a',
-            font_color='#e0e8f0',
+            paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+            font_color=text_colour,
             yaxis_title='Mean Risk (log10)',
             xaxis_title='Satellite',
             height=260,
             margin=dict(l=40, r=20, t=10, b=40)
         )
         st.plotly_chart(fig_rank, use_container_width=True)
-        st.caption("Lower value = more dangerous. Red = high risk, Orange = medium, Green = low.")
+        st.caption("Higher value = more dangerous. Red = high risk, Orange = medium, Green = low.")
 
 
 # page: model comparison
@@ -608,8 +655,8 @@ elif page == "Model Comparison" and data_loaded:
             color_continuous_scale=['#ef5350', '#ffa726', '#66bb6a'],
             title='R2 Score (higher is better)'
         )
-        fig_r2.update_layout(paper_bgcolor='#020818', plot_bgcolor='#0d1b2a',
-                              font_color='#e0e8f0', coloraxis_showscale=False)
+        fig_r2.update_layout(paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+                              font_color=text_colour, coloraxis_showscale=False)
         st.plotly_chart(fig_r2, use_container_width=True)
         st.caption("Higher R² means the model explains more of the variation in risk. 1.0 is perfect, 0 means no better than guessing the average.")
 
@@ -621,8 +668,8 @@ elif page == "Model Comparison" and data_loaded:
             color_continuous_scale=['#66bb6a', '#ffa726', '#ef5350'],
             title='RMSE (lower is better)'
         )
-        fig_rmse.update_layout(paper_bgcolor='#020818', plot_bgcolor='#0d1b2a',
-                               font_color='#e0e8f0', coloraxis_showscale=False)
+        fig_rmse.update_layout(paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+                               font_color=text_colour, coloraxis_showscale=False)
         st.plotly_chart(fig_rmse, use_container_width=True)
         st.caption("Lower RMSE is better. In log10 risk units, a difference of 1 means the prediction is off by one order of magnitude.")
 
@@ -638,9 +685,103 @@ elif page == "Model Comparison" and data_loaded:
            df_plot[['actual_risk', 'predicted_risk']].max().max() + 1]
     fig_sc.add_shape(type='line', x0=lim[0], y0=lim[0], x1=lim[1], y1=lim[1],
                      line=dict(color='white', dash='dash', width=1))
-    fig_sc.update_layout(paper_bgcolor='#020818', plot_bgcolor='#0d1b2a', font_color='#e0e8f0')
+    fig_sc.update_layout(paper_bgcolor=app_bg, plot_bgcolor=plot_bg, font_color=text_colour)
     st.plotly_chart(fig_sc, use_container_width=True)
     st.caption("Points close to the dashed line mean accurate predictions. LightGBM clusters tightly around it. The GNN and physics baseline show wide scatter, confirming poor prediction accuracy.")
+
+
+# page: evaluation
+elif page == "Evaluation" and data_loaded:
+    st.markdown('<p class="main-title">Model Evaluation</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Detailed evaluation plots for all 5 models</p>', unsafe_allow_html=True)
+
+    # risk distribution
+    st.markdown('<p class="section-header">Risk Distribution in Test Set</p>', unsafe_allow_html=True)
+    fig_dist = go.Figure()
+    fig_dist.add_trace(go.Histogram(
+        x=pred_df['actual_risk'],
+        nbinsx=50,
+        marker_color='#4fc3f7',
+        opacity=0.8,
+        name='Actual Risk'
+    ))
+    fig_dist.update_layout(
+        paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+        font_color=text_colour,
+        xaxis_title='Risk (log10)',
+        yaxis_title='Number of Events',
+        height=300,
+        margin=dict(l=40, r=20, t=10, b=40)
+    )
+    st.plotly_chart(fig_dist, use_container_width=True)
+    st.caption("Distribution of actual risk values across all 2,167 test events. Most events cluster at very low risk values — this shows why the problem is hard. High risk events are rare but are the ones that matter most operationally.")
+
+    # error distribution per model
+    st.markdown('<p class="section-header">Prediction Error Distribution by Model</p>', unsafe_allow_html=True)
+    fig_err = go.Figure()
+    colours = {
+        'LightGBM': '#4fc3f7',
+        'MLP': '#ffa726',
+        'BiLSTM': '#66bb6a',
+        'GNN': '#ef5350',
+        'PhysicsBaseline': '#ab47bc'
+    }
+    for model, df in preds.items():
+        errors = df['predicted_risk'] - df['actual_risk']
+        fig_err.add_trace(go.Histogram(
+            x=errors,
+            nbinsx=50,
+            name=model,
+            marker_color=colours.get(model, '#ffffff'),
+            opacity=0.6
+        ))
+    fig_err.update_layout(
+        barmode='overlay',
+        paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+        font_color=text_colour,
+        xaxis_title='Prediction Error (predicted - actual)',
+        yaxis_title='Number of Events',
+        height=350,
+        margin=dict(l=40, r=20, t=10, b=40),
+        legend=dict(bgcolor=plot_bg, bordercolor=border_colour)
+    )
+    st.plotly_chart(fig_err, use_container_width=True)
+    st.caption("A narrow distribution centred at 0 means accurate and unbiased predictions. LightGBM is the tightest. The physics baseline and GNN are much wider showing large and inconsistent errors.")
+
+    # performance heatmap from saved plot
+    st.markdown('<p class="section-header">Performance Heatmap</p>', unsafe_allow_html=True)
+    if os.path.exists('results/plots/model_heatmap.png'):
+        st.image('results/plots/model_heatmap.png',
+                 caption='Combined view of R², RMSE and MAE across all models. Green = better, red = worse. LightGBM is best across every metric.')
+    else:
+        st.info("Heatmap not found. Run evaluate_models.py to generate.")
+
+    # predicted vs actual all models
+    st.markdown('<p class="section-header">Predicted vs Actual — All Models</p>', unsafe_allow_html=True)
+    if os.path.exists('results/plots/predicted_vs_actual_all.png'):
+        st.image('results/plots/predicted_vs_actual_all.png',
+                 caption='Each subplot shows predicted vs actual risk for one model. Points close to the dashed line mean accurate predictions. LightGBM follows the diagonal most closely.')
+    else:
+        st.info("Plot not found. Run evaluate_models.py to generate.")
+
+    # residuals all models
+    st.markdown('<p class="section-header">Residual Plots — All Models</p>', unsafe_allow_html=True)
+    if os.path.exists('results/plots/residuals_all.png'):
+        st.image('results/plots/residuals_all.png',
+                 caption='Residuals (prediction error) vs predicted value for each model. A good model shows a random cloud around 0 with no pattern. Structured residuals mean the model is systematically wrong in a particular direction.')
+    else:
+        st.info("Plot not found. Run evaluate_models.py to generate.")
+
+    # r2 and rmse comparison plots
+    col1, col2 = st.columns(2)
+    with col1:
+        if os.path.exists('results/plots/model_comparison_r2.png'):
+            st.image('results/plots/model_comparison_r2.png',
+                     caption='R² comparison across all models.')
+    with col2:
+        if os.path.exists('results/plots/model_comparison_rmse.png'):
+            st.image('results/plots/model_comparison_rmse.png',
+                     caption='RMSE comparison across all models.')
 
 
 # page: explainability
@@ -649,7 +790,7 @@ elif page == "Explainability" and data_loaded:
     st.markdown('<p class="sub-title">SHAP analysis for LightGBM - understanding what drives each prediction</p>', unsafe_allow_html=True)
 
     st.markdown("""
-    SHAP (SHapley Additive exPlanations) shows how much each feature contributed to each prediction.
+    SHAP shows how much each feature contributed to each prediction.
     A positive SHAP value pushes the predicted risk higher. A negative value pushes it lower.
     """)
 
@@ -664,10 +805,10 @@ elif page == "Explainability" and data_loaded:
             title='LightGBM - Top 20 Features by Mean |SHAP Value|',
             labels={'mean_abs_shap': 'Mean |SHAP Value|', 'feature': 'Feature'}
         )
-        fig_shap.update_layout(paper_bgcolor='#020818', plot_bgcolor='#0d1b2a',
-                               font_color='#e0e8f0', coloraxis_showscale=False, height=600)
+        fig_shap.update_layout(paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+                               font_color=text_colour, coloraxis_showscale=False, height=600)
         st.plotly_chart(fig_shap, use_container_width=True)
-        st.caption("The top features are all about orbit uncertainty and geometry. Space weather barely matters — atmospheric conditions have very little influence on the final collision probability.")
+        st.caption("The top features are mainly about orbit uncertainty and geometry. Space weather features have much smaller impact compared to orbit geometry and uncertainty features.")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -698,30 +839,30 @@ elif page == "Explainability" and data_loaded:
                      caption='SHAP Beeswarm Plot — each dot is one event. Red dots pushed to the right mean high feature values increase predicted risk.')
     if os.path.exists('results/plots/shap_waterfall_high_risk.png'):
         st.image('results/plots/shap_waterfall_high_risk.png',
-                 caption='Prediction breakdown for the highest risk event in the test set. Each bar shows how much one feature pushed the prediction up or down. The model predicted -30.856 against an actual of -30.000.')
+                 caption='Prediction breakdown for the highest risk event in the test set. Each bar shows how much one feature pushed the prediction up or down.')
 
 
 # page: mission overview
 elif page == "Mission Overview" and data_loaded:
     st.markdown('<p class="main-title">Mission Overview</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Collision risk statistics across all 19 ESA satellites</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="sub-title">Collision risk statistics across {len(mission_stats)} ESA missions</p>', unsafe_allow_html=True)
 
     if not mission_stats.empty:
         ms = mission_stats.copy()
         ms['satellite'] = ms['mission_id'].apply(lambda x: f'SAT-{int(x):02d}')
-        ms = ms.sort_values('mean_risk')
+        ms = ms.sort_values('mean_risk', ascending=False)
 
         col1, col2 = st.columns(2)
         with col1:
             fig_mean = px.bar(ms, x='satellite', y='mean_risk',
                               color='mean_risk',
-                              color_continuous_scale=['#ef5350', '#ffa726', '#66bb6a'],
-                              title='Average Risk per Satellite (lower = more dangerous)',
+                              color_continuous_scale=['#66bb6a', '#ffa726', '#ef5350'],
+                              title='Average Risk per Satellite (higher = more dangerous)',
                               labels={'satellite': 'Satellite', 'mean_risk': 'Mean Risk (log10)'})
-            fig_mean.update_layout(paper_bgcolor='#020818', plot_bgcolor='#0d1b2a',
-                                   font_color='#e0e8f0', coloraxis_showscale=False)
+            fig_mean.update_layout(paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+                                   font_color=text_colour, coloraxis_showscale=False)
             st.plotly_chart(fig_mean, use_container_width=True)
-            st.caption("Shows which satellites face the most dangerous conjunctions on average. Lower value means more dangerous.")
+            st.caption("Higher value = more dangerous. Red satellites face the most dangerous conjunctions on average.")
 
         with col2:
             fig_cnt = px.bar(ms.sort_values('total_events', ascending=False),
@@ -731,10 +872,10 @@ elif page == "Mission Overview" and data_loaded:
                              title='Conjunction Events per Satellite',
                              labels={'satellite': 'Satellite', 'total_events': 'Total Events',
                                      'high_risk_events': 'High Risk Events'})
-            fig_cnt.update_layout(paper_bgcolor='#020818', plot_bgcolor='#0d1b2a',
-                                  font_color='#e0e8f0', coloraxis_showscale=False)
+            fig_cnt.update_layout(paper_bgcolor=app_bg, plot_bgcolor=plot_bg,
+                                  font_color=text_colour, coloraxis_showscale=False)
             st.plotly_chart(fig_cnt, use_container_width=True)
-            st.caption("Total conjunction events per satellite. Darker red bars indicate more high risk events for that satellite.")
+            st.caption("Total conjunction events per satellite.")
 
         st.markdown('<p class="section-header">Full Statistics Table</p>', unsafe_allow_html=True)
         st.dataframe(ms.drop('mission_id', axis=1).round(3), use_container_width=True)
@@ -763,9 +904,10 @@ elif page == "About" and data_loaded:
 
     The ESA dataset contains a risk column, which is the log10 collision probability
     calculated by ESA at the time of each warning message. Log10 is just a compact way
-    of writing very small numbers. Risk=-6 means a 1 in 1,000,000 chance. Risk=-4 means
-    1 in 10,000. ESA considers a manoeuvre when risk exceeds -4. Our models predict what
-    this value will be at the final message, using only the earlier messages available so far.
+    of writing very small numbers. Higher values are more dangerous — risk = -4 means
+    1 in 10,000, risk = -6 means 1 in 1,000,000. ESA considers a manoeuvre when risk
+    is higher than -4. Our models predict what this value will be at the final message, using
+    only the earlier messages available so far.
 
     Dataset: https://kelvins.esa.int/collision-avoidance-challenge/data/
     """)
@@ -842,6 +984,13 @@ elif page == "About" and data_loaded:
     | Sequence | BiLSTM | 0.237 | 6.77 | 4.72 |
     | Graph | GNN | -0.356 | 11.65 | 9.77 |
     """)
+
+    st.download_button(
+        "Download predictions",
+        data=pred_df.to_csv(index=False),
+        file_name="collision_risk_predictions.csv",
+        mime="text/csv"
+    )
 
     st.markdown('<p class="section-header">Dataset</p>', unsafe_allow_html=True)
     st.markdown("""
